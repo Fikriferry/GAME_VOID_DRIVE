@@ -2,9 +2,6 @@ using UnityEngine;
 
 public class mobil : MonoBehaviour
 {
-    [Header("Joystick")]
-    public FixedJoystick joystick;
-
     private float horizontalInput, verticalInput;
     private float currentSteerAngle, currentBrakeForce;
     private bool isBraking;
@@ -13,7 +10,7 @@ public class mobil : MonoBehaviour
     [SerializeField] private float motorForce = 1500f;
     [SerializeField] private float brakeForce = 3000f;
     [SerializeField] private float maxSteerAngle = 30f;
-    [SerializeField] private float decelerationForce = 500f; // Rem otomatis saat joystick dilepas
+    [SerializeField] private float decelerationForce = 500f; // Rem otomatis saat tidak gas
 
     [Header("Wheel Colliders")]
     [SerializeField] private WheelCollider frontLeftWheelCollider;
@@ -27,6 +24,12 @@ public class mobil : MonoBehaviour
     [SerializeField] private Transform rearLeftWheelTransform;
     [SerializeField] private Transform rearRightWheelTransform;
 
+    // Variabel internal untuk menampung status tombol HP
+    private bool mobileGas = false;
+    private bool mobileBrake = false;
+    private bool mobileLeft = false;
+    private bool mobileRight = false;
+
     private void FixedUpdate()
     {
         GetInput();
@@ -37,12 +40,47 @@ public class mobil : MonoBehaviour
 
     private void GetInput()
     {
-        // Input dari joystick
-        horizontalInput = joystick.Horizontal;
-        verticalInput = joystick.Vertical;
+        // --- 1. INPUT WINDOWS / PC (Keyboard) ---
+        float keyboardH = Input.GetAxis("Horizontal");  // Tombol A/D atau Panah Kanan/Kiri
+        float keyboardV = Input.GetAxis("Vertical");    // Tombol W/S atau Panah Atas/Bawah
+        bool keyboardBrake = Input.GetKey(KeyCode.Space); // Tombol Spasi untuk rem
 
-        // Kalau nanti ada tombol rem bisa diganti
-        isBraking = false;
+        // --- 2. INPUT HP (Tombol UI) ---
+        float mobileH = 0f;
+        if (mobileRight) mobileH += 1f;
+        if (mobileLeft) mobileH -= 1f;
+
+        float mobileV = 0f;
+        if (mobileGas) mobileV += 1f;
+
+        // --- 3. GABUNGKAN INPUT ---
+        // Mathf.Clamp digunakan agar nilainya tidak melebihi angka 1 atau -1 jika PC & HP ditekan bersamaan
+        horizontalInput = Mathf.Clamp(keyboardH + mobileH, -1f, 1f);
+        verticalInput = Mathf.Clamp(keyboardV + mobileV, -1f, 1f);
+
+        // Rem aktif jika Spasi di PC ditekan ATAU Tombol Rem di HP ditahan
+        isBraking = keyboardBrake || mobileBrake;
+    }
+
+    // --- FUNGSI PUBLIC UNTUK DIHUBUNGKAN KE TOMBOL UI HP ---
+    public void SetGas(bool state)
+    {
+        mobileGas = state;
+    }
+
+    public void SetBrake(bool state)
+    {
+        mobileBrake = state;
+    }
+
+    public void SetLeft(bool state)
+    {
+        mobileLeft = state;
+    }
+
+    public void SetRight(bool state)
+    {
+        mobileRight = state;
     }
 
     private void HandleMotor()
@@ -58,7 +96,7 @@ public class mobil : MonoBehaviour
         }
         else if (Mathf.Abs(verticalInput) < 0.1f)
         {
-            // Saat joystick dilepas
+            // Saat tidak menekan gas sama sekali
             currentBrakeForce = decelerationForce;
         }
         else
